@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from ...models import Agent, AgentTool
 from ..ai import Completion, chat_completion
-from .loop import anthropic_tool_loop, openai_tool_loop
+from .loop import tool_loop
 from .specs import build_tool_specs
 
 # Injected whenever the agent has tools: a failing tool must never be papered
@@ -51,9 +51,7 @@ async def run_completion(
         return await chat_completion(agent.provider, base_url, api_key, model, messages, temperature=temperature, max_tokens=max_tokens)
     messages = _with_tool_rules(messages)
     try:
-        if agent.provider == "anthropic":
-            return await anthropic_tool_loop(base_url, api_key, model, messages, specs, temperature, max_tokens)
-        return await openai_tool_loop(base_url, api_key, model, messages, specs, temperature, max_tokens)
+        return await tool_loop(base_url, api_key, model, messages, specs, temperature, max_tokens)
     except HTTPException:
         raise
     except (httpx.HTTPError, KeyError, ValueError, IndexError) as exc:

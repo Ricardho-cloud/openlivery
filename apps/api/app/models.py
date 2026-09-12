@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, JSON, LargeBinary, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, JSON, LargeBinary, Numeric, String, Text, UniqueConstraint
 from sqlalchemy import text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -110,8 +110,8 @@ class Client(Base):
 
 
 class ProviderCredential(Base):
-    """One AI provider API key per agency (bring your own key). provider is
-    "openai" or "anthropic"; the base URL is resolved from the provider."""
+    """One AI provider API key per agency (bring your own key). provider names
+    a registry entry ("openrouter"); the base URL is resolved from it."""
 
     __tablename__ = "provider_credentials"
     __table_args__ = (UniqueConstraint("agency_id", "provider", name="uq_provider_credentials_agency_provider"),)
@@ -153,8 +153,8 @@ class Agent(Base):
     brief_policies: Mapped[str] = mapped_column(Text, default="", server_default="")
     brief_dos: Mapped[str] = mapped_column(Text, default="", server_default="")
     brief_donts: Mapped[str] = mapped_column(Text, default="", server_default="")
-    # AI provider ("openai" or "anthropic"); the agency's key for that provider is used.
-    provider: Mapped[str] = mapped_column(String(30), default="openai", server_default="openai")
+    # AI provider registry entry ("openrouter"); the agency's key for that provider is used.
+    provider: Mapped[str] = mapped_column(String(30), default="openrouter", server_default="openrouter")
     model: Mapped[str] = mapped_column(String(180), default="")
     # The timezone lives on the client since 0041 (``Client.timezone``). The
     # ``agents.timezone`` column is still in the database, unmapped, so the
@@ -186,7 +186,7 @@ class Agent(Base):
     image_enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     image_model: Mapped[str] = mapped_column(String(180), default="", server_default="")
     audio_enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
-    audio_model: Mapped[str] = mapped_column(String(180), default="whisper-1", server_default="whisper-1")
+    audio_model: Mapped[str] = mapped_column(String(180), default="openai/gpt-4o-mini-transcribe", server_default="openai/gpt-4o-mini-transcribe")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc, onupdate=now_utc)
@@ -368,6 +368,9 @@ class UsageRecord(Base):
     model: Mapped[str] = mapped_column(String(180))
     input_tokens: Mapped[int] = mapped_column(Integer, default=0)
     output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    # What the reply cost in USD as the provider reported it; None before 0042
+    # or when the provider gave no figure.
+    cost_usd: Mapped[float | None] = mapped_column(Numeric(14, 8), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc, index=True)
 
 

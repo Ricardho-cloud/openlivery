@@ -13,6 +13,19 @@ Upgrading: this release adds database migrations (applied automatically by the
 Docker stack; run `alembic upgrade head` on local setups).
 
 ### Changed
+- **OpenRouter is the only AI provider.** An agency configures one OpenRouter
+  key in Settings and every agent picks any model OpenRouter offers by its
+  `vendor/model` slug (`openai/gpt-5.6-luna`, `anthropic/claude-sonnet-5`,
+  `google/gemini-3.8-flash`); the provider selector is gone. Chat, tool
+  calling and image understanding use `/chat/completions`, transcription
+  `/audio/transcriptions` and knowledge-base embeddings `/embeddings`, all
+  through the same key. Each reply now records what it cost
+  (`usage_records.cost_usd`) as OpenRouter reports it. Migration
+  `0042_openrouter` moves existing agents to OpenRouter, rewrites their model
+  ids to slugs (`whisper-1` becomes `openai/gpt-4o-mini-transcribe`) and
+  drops the stored OpenAI and Anthropic keys, which OpenRouter cannot use:
+  **after upgrading, add an OpenRouter key in Settings or agents stop
+  replying.** Agent routes reject any `provider` other than `openrouter`.
 - **One agency per installation.** First-run setup creates the agency and owner,
   then public registration closes. The former `ALLOW_MULTI_AGENCY` setting is
   removed and has no effect, even when left in an existing environment file.
