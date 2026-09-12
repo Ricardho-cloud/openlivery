@@ -51,6 +51,9 @@ class Completion:
     reasoning_tokens: int = 0
     # The upstream vendor that actually served the request, when the router names it.
     served_by: str = ""
+    # Wall-clock time the whole completion took (tool rounds included); set
+    # by run_completion.
+    duration_ms: int | None = None
 
 
 # Substrings in a provider's 400 error that mean a sampling parameter is not

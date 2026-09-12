@@ -371,6 +371,19 @@ class UsageRecord(Base):
     # What the reply cost in USD as the provider reported it; None before 0042
     # or when the provider gave no figure.
     cost_usd: Mapped[float | None] = mapped_column(Numeric(14, 8), nullable=True)
+    # The reply behind the record (0043): which conversation and message, how
+    # long the model took, who served it and what the tokens were made of.
+    # Records from before carry none of it.
+    conversation_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("conversations.id", ondelete="SET NULL"), nullable=True, index=True)
+    message_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("messages.id", ondelete="SET NULL"), nullable=True)
+    # Declared so the unit of work inserts the reply before the record that
+    # points at it; nothing loads them eagerly.
+    conversation: Mapped["Conversation | None"] = relationship(foreign_keys=[conversation_id], lazy="noload")
+    message: Mapped["Message | None"] = relationship(foreign_keys=[message_id], lazy="noload")
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    served_by: Mapped[str] = mapped_column(String(60), default="", server_default="")
+    cached_tokens: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    reasoning_tokens: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc, index=True)
 
 

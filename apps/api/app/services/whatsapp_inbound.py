@@ -441,7 +441,7 @@ async def _reply_with_ai(db: Session, channel, conversation: Conversation, retri
         if (conversation.mode == "human" or conversation.status == "resolved" or not channel.is_enabled
                 or (last_message and last_message.role != "user")
                 or (expected_last_message_id and (not last_message or last_message.id != expected_last_message_id))):
-            record_usage(db, agent.agency_id, agent.id, agent.provider, agent.model.strip(), completion)
+            record_usage(db, agent.agency_id, agent.id, agent.provider, agent.model.strip(), completion, conversation=conversation)
             db.commit()
             return InboundResult(accepted=True, conversation_id=conversation.id, mode=conversation.mode)
     if conversation.channel in ("instagram", "messenger"):
@@ -454,7 +454,7 @@ async def _reply_with_ai(db: Session, channel, conversation: Conversation, retri
             if expected_last_message_id and (not last_message or last_message.id != expected_last_message_id):
                 raise HTTPException(status_code=409, detail="The conversation changed while generating the reply.")
         except HTTPException:
-            record_usage(db, agent.agency_id, agent.id, agent.provider, agent.model.strip(), completion)
+            record_usage(db, agent.agency_id, agent.id, agent.provider, agent.model.strip(), completion, conversation=conversation)
             db.commit()
             return InboundResult(accepted=True, conversation_id=conversation.id, mode=conversation.mode)
     quoted_message_id: uuid.UUID | None = None
@@ -482,7 +482,7 @@ async def _reply_with_ai(db: Session, channel, conversation: Conversation, retri
         if conversation.channel in ("instagram", "messenger"):
             from .social_delivery import queue_message
             queue_message(db, conversation, outbound)
-    record_usage(db, agent.agency_id, agent.id, agent.provider, agent.model.strip(), completion)
+    record_usage(db, agent.agency_id, agent.id, agent.provider, agent.model.strip(), completion, conversation=conversation, message=outbound)
     conversation.updated_at = now_utc()
     channel.last_error = None
     if escalation_holder and conversation.channel in ("instagram", "messenger"):

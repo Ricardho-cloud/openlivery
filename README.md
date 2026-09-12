@@ -63,6 +63,9 @@ Full documentation lives in **[docs/](docs/)**. Every guide is written twice:
 - ✅ Bring-your-own **OpenRouter** key — agency-level, encrypted, and validated when saved
 - ✅ Any model OpenRouter offers (OpenAI, Anthropic, Google, DeepSeek, xAI, Meta, ...), picked per agent by slug, with the real cost of every reply recorded
 
+**Reports** — [docs](docs/en/reports.md)
+- ✅ AI cost by client, agent, model and day, plus every reply with its tokens, cost, vendor and duration, exportable as CSV
+
 **Custom tools** — [docs](docs/en/custom-tools.md)
 - ✅ Per-agent **HTTP tools**: any REST endpoint with path/query/body parameters, encrypted auth headers and an SSRF guard
 - ✅ **MCP servers** (Streamable HTTP or SSE) with test-before-save connection checks and cached tool discovery
