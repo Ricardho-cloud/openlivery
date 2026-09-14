@@ -228,6 +228,9 @@ class AgentTool(Base):
     transport: Mapped[str] = mapped_column(String(20), default="streamable_http")
     cached_tools: Mapped[list] = mapped_column(JSON, default=list)
     tools_cached_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Names of the cached tools the agent may call. None exposes every cached
+    # tool; a list restricts the server to that subset.
+    enabled_tools: Mapped[list | None] = mapped_column(JSON, nullable=True)
     # The full auth headers dict, encrypted at rest; never returned by the API.
     encrypted_headers: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)

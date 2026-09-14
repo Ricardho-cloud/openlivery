@@ -103,7 +103,7 @@ export type KnowledgeDocument = {
 export type QAPair = { id: string; question: string; answer: string };
 
 export type ToolParam = { name: string; type: "string" | "number" | "integer" | "boolean"; description: string; required: boolean };
-export type McpCachedTool = { name: string; description: string; input_schema?: Record<string, unknown> };
+export type McpCachedTool = { name: string; description: string; input_schema?: Record<string, unknown>; read_only?: boolean; destructive?: boolean };
 export type AgentTool = {
   id: string;
   agent_id: string;
@@ -120,6 +120,8 @@ export type AgentTool = {
   transport: "sse" | "streamable_http";
   cached_tools: McpCachedTool[];
   tools_cached_at: string | null;
+  // null: every cached tool is exposed; a list restricts the server to it.
+  enabled_tools: string[] | null;
   has_headers: boolean;
   created_at: string;
   updated_at: string;

@@ -58,7 +58,7 @@ export function AgentToolsTab({ agentId, tools, onToolsChange }: {
             <span className={`document-icon ${tool.enabled ? "" : "error"}`}>{tool.type === "http" ? <Zap size={18} /> : <Server size={18} />}</span>
             <div>
               <strong>{tool.name} <span className="pill">{tool.type === "http" ? `${t("tools.badgeHttp")} · ${tool.http_method}` : t("tools.badgeMcp")}</span></strong>
-              <small>{tool.type === "mcp" ? `${tool.url} · ${t("tools.mcpToolCount", { count: tool.cached_tools.length })}` : tool.description || tool.url}</small>
+              <small>{tool.type === "mcp" ? `${tool.url} · ${tool.enabled_tools ? t("tools.mcpToolsEnabled", { enabled: tool.enabled_tools.length, count: tool.cached_tools.length }) : t("tools.mcpToolCount", { count: tool.cached_tools.length })}` : tool.description || tool.url}</small>
             </div>
             <label className="switch-row compact tool-switch" title={t("tools.enabled")}>
               <input type="checkbox" checked={tool.enabled} onChange={() => toggle(tool)} />
