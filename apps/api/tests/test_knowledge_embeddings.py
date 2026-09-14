@@ -114,6 +114,26 @@ def test_semantic_search_uses_only_the_agent_model_and_the_best_chunks(authentic
         assert "topic 3" in fallback.text
 
 
+def test_reindex_single_document(authenticated_client: TestClient, monkeypatch):
+    client = authenticated_client
+    agent_id = _setup_agent(client)
+    monkeypatch.setattr(agents_router, "PdfReader", _reader_for("A document about warranties."))
+    monkeypatch.setattr(knowledge_module, "embed_texts", _fake_embed(3))
+    doc = client.post(f"/api/agents/{agent_id}/documents", files={"file": ("a.pdf", b"%PDF-test", "application/pdf")}).json()
+
+    # Change the model, then reindex just this document into the new one.
+    client.patch(f"/api/agents/{agent_id}", json={"embedding_model": "qwen/qwen3-embedding-8b"})
+    monkeypatch.setattr(knowledge_module, "embed_texts", _fake_embed(4))
+    reindexed = client.post(f"/api/agents/{agent_id}/documents/{doc['id']}/reindex")
+    assert reindexed.status_code == 200, reindexed.text
+    assert reindexed.json()["indexed_model"] == "qwen/qwen3-embedding-8b"
+
+    # Unknown document is a 404, and a provider that returns nothing is a 502.
+    assert client.post(f"/api/agents/{agent_id}/documents/{doc['id'].replace('0', '1')}/reindex").status_code in (404, 422)
+    monkeypatch.setattr(knowledge_module, "embed_texts", AsyncMock(return_value=None))
+    assert client.post(f"/api/agents/{agent_id}/documents/{doc['id']}/reindex").status_code == 502
+
+
 def test_catalog_lists_embedding_models(authenticated_client: TestClient):
     models = authenticated_client.get("/api/catalog/embedding-models").json()
     assert models[0]["id"] == "openai/text-embedding-3-small"

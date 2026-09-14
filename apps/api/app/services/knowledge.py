@@ -126,6 +126,20 @@ async def embed_document_chunks(db: Session, agent: Agent, document: KnowledgeDo
     return len(pieces)
 
 
+async def reindex_document(db: Session, agent: Agent, document: KnowledgeDocument) -> int:
+    """Re-embed one document with the agent's current model. Raises RuntimeError
+    when there is no provider key or the provider returned nothing, so the
+    caller can report it. A document with no usable text is a no-op (returns 0)."""
+    if not resolve_provider_credentials(db, agent.agency_id, DEFAULT_PROVIDER):
+        raise RuntimeError("No provider key is configured for embeddings")
+    if document.status != "processed" or not document.extracted_text.strip():
+        return 0
+    count = await embed_document_chunks(db, agent, document)
+    if count == 0:
+        raise RuntimeError("The provider did not return embeddings for the document")
+    return count
+
+
 async def reindex_agent(db: Session, agent: Agent) -> int:
     """Re-embed every processed document with the agent's current model.
 

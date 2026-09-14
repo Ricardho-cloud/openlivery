@@ -13,7 +13,7 @@ from ..database import get_db
 from ..deps import get_current_user
 from ..models import Agent, AgentQA, AgentTool, Client, EscalationRule, KnowledgeChunk, KnowledgeDocument, PortalUser, Team, User, WhatsAppChannel, WhatsAppCloudChannel, WidgetChannel, now_utc
 from ..schemas import AgentCreate, AgentOut, AgentPromptOut, AgentUpdate, DocumentOut, EscalationConfigIn, EscalationConfigOut, QAPairCreate, QAPairOut, check_reply_delay
-from ..services.knowledge import build_system_prompt, embed_document_chunks, reindex_agent
+from ..services.knowledge import build_system_prompt, embed_document_chunks, reindex_agent, reindex_document
 
 
 router = APIRouter(prefix="/agents", tags=["Agents"])
@@ -206,6 +206,26 @@ async def upload_document(
             await embed_document_chunks(db, agent, document)
         except Exception:
             db.rollback()
+    return _document_out(document)
+
+
+@router.post("/{agent_id}/documents/{document_id}/reindex", response_model=DocumentOut)
+async def reindex_one_document(
+    agent_id: uuid.UUID, document_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)
+):
+    """Re-embed a single document with the agent's current embedding model."""
+    agent = _agent(db, user, agent_id)
+    document = db.scalar(
+        select(KnowledgeDocument).where(KnowledgeDocument.id == document_id, KnowledgeDocument.agent_id == agent.id)
+    )
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    try:
+        await reindex_document(db, agent, document)
+    except RuntimeError as exc:
+        db.rollback()
+        raise HTTPException(status_code=502, detail=f"Could not index the document: {exc}.") from exc
+    db.refresh(document)
     return _document_out(document)
 
 

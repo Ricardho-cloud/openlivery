@@ -68,6 +68,21 @@ export default function AgentDetailPage() {
   useEffect(() => { load(); }, [id]);
   useEffect(() => { api<EmbeddingModelInfo[]>("/catalog/embedding-models").then(setEmbeddingModels).catch(() => {}); }, []);
 
+  // Mirrors MAX_FULL_CONTEXT_CHARS in the backend: at or below this the whole
+  // knowledge base is sent in full and embeddings are not used.
+  const FULL_CONTEXT_CHARS = 45_000;
+  const smallBase = documents.reduce((sum, doc) => sum + (doc.status === "processed" ? doc.character_count : 0), 0) <= FULL_CONTEXT_CHARS;
+
+  // Re-embed a single document with the agent's current model (repair one row).
+  async function reindexOne(doc: KnowledgeDocument) {
+    setIndexing(true);
+    try {
+      const updated = await api<KnowledgeDocument>(`/agents/${id}/documents/${doc.id}/reindex`, { method: "POST" });
+      setDocuments((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
+      toast.success(t("agents.detail.reindexed", { model: agent?.embedding_model || "" }));
+    } catch (err) { toast.error(messageFrom(err)); } finally { setIndexing(false); }
+  }
+
   // Re-embed every document with the agent's current model. Also the repair
   // path for uploads that were indexed without a working provider key.
   async function reindex(model?: string) {
@@ -231,7 +246,7 @@ export default function AgentDetailPage() {
     {tab === "knowledge" && <div className="knowledge-stack">
       <section className="panel documents-panel"><div className="panel-head"><div><h3>{t("agents.detail.pdfHeading")}</h3><p>{t("agents.detail.pdfCopy")}</p></div></div>
         <button className="dropzone" onClick={() => fileRef.current?.click()} disabled={busy}><span><UploadCloud size={24} /></span><strong>{busy ? t("agents.detail.processing") : t("agents.detail.uploadPdf")}</strong><small>{t("agents.detail.uploadHint")}</small></button><input ref={fileRef} type="file" accept="application/pdf,.pdf" hidden onChange={(e) => upload(e.target.files?.[0])} />
-        <div className="documents-list">{documents.map((doc) => <div className="document-row" key={doc.id}><span className={`document-icon ${doc.status}`}><FileText size={19} /></span><div><strong>{doc.filename}</strong><small>{doc.status === "processed" ? `${t("agents.detail.charsExtracted", { count: doc.character_count.toLocaleString("es") })} · ${doc.chunk_count && doc.indexed_model === agent.embedding_model ? t("agents.detail.indexedChunks", { count: doc.chunk_count }) : t("agents.detail.notIndexed")}` : doc.error_message}</small></div><span className={`document-status ${doc.status}`}>{doc.status === "processed" ? <><CheckCircle2 size={14} /> {t("agents.detail.processed")}</> : <><XCircle size={14} /> {t("agents.detail.error")}</>}</span><button className="icon-button danger-icon" onClick={() => removeDocument(doc)} title={t("agents.detail.delete")}><Trash2 size={16} /></button></div>)}{!documents.length && <div className="inline-empty slim"><FileText size={22} /><div><strong>{t("agents.detail.noDocumentsTitle")}</strong><span>{t("agents.detail.noDocumentsHint")}</span></div></div>}</div>
+        <div className="documents-list">{documents.map((doc) => <div className="document-row" key={doc.id}><span className={`document-icon ${doc.status}`}><FileText size={19} /></span><div><strong>{doc.filename}</strong><small>{doc.status === "processed" ? `${t("agents.detail.charsExtracted", { count: doc.character_count.toLocaleString("es") })} · ${smallBase ? t("agents.detail.sentInFull") : doc.chunk_count && doc.indexed_model === agent.embedding_model ? t("agents.detail.indexedChunks", { count: doc.chunk_count }) : t("agents.detail.notIndexed")}` : doc.error_message}</small></div><span className={`document-status ${doc.status}`}>{doc.status === "processed" ? <><CheckCircle2 size={14} /> {t("agents.detail.processed")}</> : <><XCircle size={14} /> {t("agents.detail.error")}</>}</span>{doc.status === "processed" && !smallBase && <button className="icon-button" onClick={() => reindexOne(doc)} disabled={indexing || busy} title={t("agents.detail.reindex")}><RefreshCw size={15} /></button>}<button className="icon-button danger-icon" onClick={() => removeDocument(doc)} title={t("agents.detail.delete")}><Trash2 size={16} /></button></div>)}{!documents.length && <div className="inline-empty slim"><FileText size={22} /><div><strong>{t("agents.detail.noDocumentsTitle")}</strong><span>{t("agents.detail.noDocumentsHint")}</span></div></div>}</div>
       </section>
     <section className="panel"><div className="panel-head"><div><h3>{t("agents.detail.embeddingHeading")} <AiHint text={t("aiContext.embedding")} /></h3><p>{t("agents.detail.embeddingCopy")}</p></div><button type="button" className="button secondary" onClick={() => reindex()} disabled={indexing || busy || !documents.some((doc) => doc.status === "processed")}>{indexing ? <LoaderCircle className="spin" size={15} /> : <RefreshCw size={15} />} {indexing ? t("agents.detail.reindexing") : t("agents.detail.reindex")}</button></div>
       <label className="embedding-picker">{t("agents.detail.embeddingModelLabel")}
