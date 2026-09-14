@@ -1525,8 +1525,9 @@ input:focus, textarea:focus, select:focus, .phone-input:focus-within { border-co
 .tools-panel .panel-head { align-items: flex-start; }
 .tools-actions { display: flex; gap: 8px; flex: 0 0 auto; }
 .document-row .pill { min-height: 19px; margin-left: 5px; padding: 0 7px; font-size: 12px; }
-.tool-switch { min-height: auto !important; padding: 0 !important; border: 0 !important; }
-.tools-row-actions { display: flex; gap: 6px; }
+.tool-switch { min-height: auto !important; margin: 0 !important; padding: 0 !important; border: 0 !important; }
+/* .document-row > div stacks its children; the action pair must stay in a row. */
+.tools-row-actions { flex-direction: row !important; align-items: center; gap: 6px; margin-left: 4px; }
 .kv-editor, .params-editor { display: flex; flex-direction: column; gap: 8px; }
 .kv-row { display: grid; grid-template-columns: 1fr 1.4fr auto; gap: 8px; align-items: center; }
 .params-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
