@@ -1521,6 +1521,10 @@ input:focus, textarea:focus, select:focus, .phone-input:focus-within { border-co
   .review-list > div { grid-template-columns: 1fr; gap: 3px; }
 }
 
+/* Knowledge tab: embedding model picker */
+.embedding-picker { padding: 0 23px 21px; display: flex; flex-direction: column; gap: 7px; max-width: 560px; color: var(--ink-2); font-size: 12px; font-weight: 700; }
+.embedding-picker .field-help { font-weight: 400; }
+
 /* Agent tools tab */
 .tools-panel .panel-head { align-items: flex-start; }
 .tools-actions { display: flex; gap: 8px; flex: 0 0 auto; }

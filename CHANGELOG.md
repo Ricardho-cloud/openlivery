@@ -14,6 +14,7 @@ Docker stack; run `alembic upgrade head` on local setups).
 
 ### Added
 
+- Pick the knowledge base's embedding model per agent from OpenRouter's embedding catalog (`openai/text-embedding-3-small` stays the default); changing it reindexes the agent's documents, and a Reindex button repairs documents indexed without a working key. Semantic search keeps the ten best chunks instead of filling the budget. Migration `0046` adds `agents.embedding_model` and `knowledge_chunks.embedding_model`.
 - Choose which tools of an MCP server the agent may call, with read-only and modifies-data badges from the server's annotations. Migration `0045` adds `agent_tools.enabled_tools`.
 - Identify human-written turns in the agent's context while following the customer's current request.
 - Mirror linked-phone replies and pause WhatsApp agents for a configurable silence window, including Business app coexistence.

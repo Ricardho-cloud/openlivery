@@ -76,6 +76,7 @@ export type Agent = {
   image_model: string;
   audio_enabled: boolean;
   audio_model: string;
+  embedding_model: string;
   is_active: boolean;
   client: Client;
   created_at: string;
@@ -98,7 +99,11 @@ export type KnowledgeDocument = {
   error_message: string | null;
   character_count: number;
   created_at: string;
+  // Embedding model of the stored chunks; null when nothing is indexed.
+  indexed_model: string | null;
+  chunk_count: number;
 };
+export type EmbeddingModelInfo = { id: string; provider: string; label: string; context_window: number; input_price_per_1k: number; note: string };
 
 export type QAPair = { id: string; question: string; answer: string };
 
