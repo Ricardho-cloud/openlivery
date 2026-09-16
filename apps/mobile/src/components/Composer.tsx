@@ -119,6 +119,8 @@ export function Composer({ draftKey, brand, busy, channel = "widget", capabiliti
   const recordingEpoch = useRef(0);
   const preparingRef = useRef(false);
   const foregroundReady = useRef<((active: boolean) => void) | null>(null);
+  const foregroundTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const foregroundDelay = useRef(0);
   const stoppingRef = useRef(false);
   const changingPause = useRef(false);
   const [stopping, setStopping] = useState(false);
@@ -300,6 +302,7 @@ export function Composer({ draftKey, brand, busy, channel = "widget", capabiliti
     setPreparing(true);
     let started = false;
     try {
+      const previousPermission = await AudioModule.getRecordingPermissionsAsync();
       const permission = await AudioModule.requestRecordingPermissionsAsync();
       if (!mounted.current || epoch !== recordingEpoch.current) return;
       if (!permission.granted) {
@@ -314,8 +317,18 @@ export function Composer({ draftKey, brand, busy, channel = "widget", capabiliti
       // iOS may deliver the permission prompt's inactive event while the
       // native recorder is preparing. Wait after preparation, immediately
       // before record(), so that transition cannot interrupt a fresh note.
-      const active = AppState.currentState === "active" || await new Promise<boolean>((resolve) => {
-        foregroundReady.current = resolve;
+      // The native permission callback can precede even the inactive event.
+      // Let the first prompt's lifecycle settle before opening the microphone.
+      foregroundDelay.current = previousPermission.granted ? 0 : 500;
+      const active = await new Promise<boolean>((resolve) => {
+        foregroundReady.current = (ready) => {
+          if (foregroundTimer.current) clearTimeout(foregroundTimer.current);
+          foregroundTimer.current = null;
+          resolve(ready);
+        };
+        if (AppState.currentState === "active") {
+          foregroundTimer.current = setTimeout(() => foregroundReady.current?.(true), foregroundDelay.current);
+        }
       });
       foregroundReady.current = null;
       if (!active || !mounted.current || epoch !== recordingEpoch.current) return;
@@ -385,7 +398,12 @@ export function Composer({ draftKey, brand, busy, channel = "widget", capabiliti
   interruptRecording.current = () => { void stopRecording("preserve"); };
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
-      if (state === "active") { foregroundReady.current?.(true); return; }
+      if (foregroundTimer.current) clearTimeout(foregroundTimer.current);
+      foregroundTimer.current = null;
+      if (state === "active") {
+        if (foregroundReady.current) foregroundTimer.current = setTimeout(() => foregroundReady.current?.(true), foregroundDelay.current);
+        return;
+      }
       // Permission prompts can make the app inactive before recording starts.
       // Preserve a running/paused note on any interruption, but only cancel a
       // pending preparation when the user actually backgrounds the app.

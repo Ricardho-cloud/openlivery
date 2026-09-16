@@ -47,7 +47,10 @@ function fixture({ replyWait, failSend = false, nativeRecording = true, captured
   const appState = { currentState: 'active', addEventListener: (_event, listener) => { stateListeners.add(listener); return { remove: () => stateListeners.delete(listener) }; } };
   function changeAppState(state) { appState.currentState = state; for (const listener of stateListeners) listener(state); }
   const audio = {
-    AudioModule: { requestRecordingPermissionsAsync: async () => { calls.permission += 1; if (permissionPrompt === true) changeAppState('inactive'); return { granted: true }; } },
+    AudioModule: {
+      getRecordingPermissionsAsync: async () => ({ granted: !permissionPrompt }),
+      requestRecordingPermissionsAsync: async () => { calls.permission += 1; if (permissionPrompt === true) changeAppState('inactive'); return { granted: true }; },
+    },
     RecordingPresets: { HIGH_QUALITY: {} },
     useAudioRecorder: () => recorder,
     useAudioRecorderState: () => ({ isRecording: calls.recording, durationMillis: 33000 }),
@@ -102,6 +105,7 @@ function fixture({ replyWait, failSend = false, nativeRecording = true, captured
   return {
     calls, load,
     async appState(state) { await act(async () => { changeAppState(state); }); },
+    async settleRecording() { await act(async () => { await new Promise((resolve) => setTimeout(resolve, 550)); }); },
     async mount() { await act(async () => { tree = create(React.createElement(ChatScreen, { server: 'https://example.test', session, conversation: detail, onBack() {} })); }); },
     async mountAudio() {
       const { AttachmentView } = load('src/components/Attachments.tsx');
@@ -219,6 +223,7 @@ test('first microphone permission waits until its system prompt returns the app 
   await act(async () => { void f.button('Record audio').props.onPress(); });
   assert.equal(f.calls.recording, false);
   await f.appState('active');
+  await f.settleRecording();
   assert.equal(f.calls.recording, true);
   assert.equal(f.calls.stops, 0);
   await f.press('Stop and review audio');
@@ -244,6 +249,21 @@ test('a delayed permission transition during native preparation cannot cut off t
   await act(async () => { void f.button('Record audio').props.onPress(); });
   assert.equal(f.calls.recording, false);
   await f.appState('active');
+  await f.settleRecording();
+  assert.equal(f.calls.recording, true);
+  assert.equal(f.calls.stops, 0);
+  await f.press('Delete recording');
+  await f.unmount();
+});
+
+test('the first permission callback can precede its queued inactive notification', async () => {
+  const f = fixture({ permissionPrompt: 'after-preparation' });
+  await f.mount();
+  await act(async () => { void f.button('Record audio').props.onPress(); });
+  assert.equal(f.calls.recording, false);
+  await f.appState('inactive');
+  await f.appState('active');
+  await f.settleRecording();
   assert.equal(f.calls.recording, true);
   assert.equal(f.calls.stops, 0);
   await f.press('Delete recording');
