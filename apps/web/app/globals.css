@@ -1026,6 +1026,13 @@ textarea { line-height: 1.55; }
 .modal-form .ai-hint-tip { top: calc(100% + 8px); bottom: auto; }
 .modal-form .ai-hint-tip::after { top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: var(--inverse); }
 .mini-badge.team { color: var(--ink-2); border-color: var(--line); background: var(--surface-3); }
+/* Scoped under the inbox aside to beat its full-width `button` rule. */
+.portal-inbox > aside .inbox-filter-toggle { flex: 0 0 auto; display: grid; place-items: center; width: 34px; height: 34px; min-height: 0; padding: 0; color: var(--muted); border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: pointer; }
+.portal-inbox > aside .inbox-filter-toggle:hover { color: var(--ink); border-color: var(--line-strong); }
+.portal-inbox > aside .inbox-filter-toggle.open { color: var(--accent-text); border-color: var(--accent-line); background: var(--accent-soft); }
+/* A dot marks an active filter so it reads even while the row is folded. */
+.portal-inbox > aside .inbox-filter-toggle.active { position: relative; color: var(--accent-text); border-color: var(--accent-line); }
+.portal-inbox > aside .inbox-filter-toggle.active::after { content: ""; position: absolute; top: -3px; right: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); border: 2px solid var(--surface-2); }
 .inbox-filter-row { display: flex; gap: 8px; margin: 10px 12px 2px; }
 .inbox-mini-select { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 6px 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--muted); }
 .inbox-mini-select:focus-within { border-color: var(--purple); }
