@@ -118,6 +118,7 @@ export function Composer({ draftKey, brand, busy, channel = "widget", capabiliti
   const sending = useRef(false);
   const recordingEpoch = useRef(0);
   const preparingRef = useRef(false);
+  const foregroundReady = useRef<((active: boolean) => void) | null>(null);
   const stoppingRef = useRef(false);
   const changingPause = useRef(false);
   const [stopping, setStopping] = useState(false);
@@ -209,6 +210,8 @@ export function Composer({ draftKey, brand, busy, channel = "widget", capabiliti
     return () => {
       mounted.current = false;
       recordingEpoch.current += 1;
+      foregroundReady.current?.(false);
+      foregroundReady.current = null;
     };
   }, []);
 
@@ -308,6 +311,14 @@ export function Composer({ draftKey, brand, busy, channel = "widget", capabiliti
       await recorder.prepareToRecordAsync();
       if (!mounted.current) return;
       if (epoch !== recordingEpoch.current) { await recorder.stop(); return; }
+      // iOS may deliver the permission prompt's inactive event while the
+      // native recorder is preparing. Wait after preparation, immediately
+      // before record(), so that transition cannot interrupt a fresh note.
+      const active = AppState.currentState === "active" || await new Promise<boolean>((resolve) => {
+        foregroundReady.current = resolve;
+      });
+      foregroundReady.current = null;
+      if (!active || !mounted.current || epoch !== recordingEpoch.current) return;
       setLevels(new Array(BARS).fill(0.08));
       setPaused(false);
       recordingSession.start();
@@ -340,6 +351,8 @@ export function Composer({ draftKey, brand, busy, channel = "widget", capabiliti
   async function stopRecording(action: "discard" | "preserve") {
     if (preparingRef.current) {
       recordingEpoch.current += 1; setPreparing(false);
+      foregroundReady.current?.(false);
+      foregroundReady.current = null;
       return;
     }
     if (stoppingRef.current || sending.current) return;
@@ -372,7 +385,7 @@ export function Composer({ draftKey, brand, busy, channel = "widget", capabiliti
   interruptRecording.current = () => { void stopRecording("preserve"); };
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
-      if (state === "active") return;
+      if (state === "active") { foregroundReady.current?.(true); return; }
       // Permission prompts can make the app inactive before recording starts.
       // Preserve a running/paused note on any interruption, but only cancel a
       // pending preparation when the user actually backgrounds the app.
