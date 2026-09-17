@@ -528,9 +528,7 @@ const en = {
       replyingTo: "Replying to {name}",
       cancelReply: "Cancel the quoted reply",
       resolvedLocked: "This conversation is resolved.",
-      resolvedHint: "The contact's next message opens a new one. Archive it to take it out of the inbox; it keeps its history and counts in reports.",
       archivedLocked: "This conversation is archived.",
-      archivedHint: "Restore it to see it in Resolved again, or delete it for good.",
     },
     activity: {
       resolved: "{actor} resolved the conversation",
@@ -1094,9 +1092,7 @@ const es: typeof en = {
       replyingTo: "Respondiendo a {name}",
       cancelReply: "Cancelar la respuesta citada",
       resolvedLocked: "Esta conversación está resuelta.",
-      resolvedHint: "El siguiente mensaje del contacto abre una nueva. Archívala para sacarla de la bandeja; conserva su historial y cuenta en los reportes.",
       archivedLocked: "Esta conversación está archivada.",
-      archivedHint: "Restáurala para verla otra vez en Resueltas, o elimínala de forma definitiva.",
     },
     activity: {
       resolved: "{actor} resolvió la conversación",

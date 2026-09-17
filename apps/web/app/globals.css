@@ -776,6 +776,10 @@ textarea { line-height: 1.55; }
 .portal-composer.window-closed { align-items: center; justify-content: space-between; gap: 16px; background: var(--amber-soft); }
 .portal-composer.window-closed > div { display: flex; flex-direction: column; gap: 2px; }
 .portal-composer.window-closed small { color: var(--amber-text); }
+/* Resolved and archived are closed, settled states, not warnings: the bar
+   that marks them is green. The WhatsApp window-closed bar keeps its amber. */
+.portal-composer.window-closed.archive-bar { border-top-color: var(--green-line); background: var(--green-soft); }
+.portal-composer.window-closed.archive-bar strong { color: var(--green-text); }
 .portal-composer.window-closed .button { width: auto; min-height: 38px; padding: 0 16px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; flex: 0 0 auto; }
 .portal-templates { padding: 4px 0; }
 .portal-templates-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
@@ -2206,6 +2210,8 @@ html[data-theme-transition], html[data-theme-transition] *, html[data-theme-tran
 :root[data-theme="dark"] .rich-text code { background: rgba(255, 255, 255, .08); }
 :root[data-theme="dark"] .portal-composer.window-closed { border-top-color: var(--amber-line); }
 :root[data-theme="dark"] .portal-composer.window-closed strong { color: var(--amber-text); }
+:root[data-theme="dark"] .portal-composer.window-closed.archive-bar { border-top-color: var(--green-line); background: var(--green-soft); }
+:root[data-theme="dark"] .portal-composer.window-closed.archive-bar strong { color: var(--green-text); }
 
 /* Phone layout corrections.
 
@@ -2382,3 +2388,74 @@ html[data-theme-transition], html[data-theme-transition] *, html[data-theme-tran
 }
 /* The back control only means something on a phone. */
 .inbox-back { display: none; }
+
+/* Client portal on a phone. The side nav was a fixed 230px column that took
+   most of the screen; it becomes a bottom tab bar with the four links, and
+   the availability switch plus sign-out move to the top of Settings (the
+   .portal-foot-mobile copy, hidden on a desktop). Inbox and Contacts split
+   the height between list and detail before; now the list is the screen until
+   something is picked, then the detail is, with a way back in its header. */
+.portal-foot-mobile { display: none; }
+/* The reports filter toggle is a phone control too; the 640px rule below
+   turns it on. Without this line it rendered on a desktop as a bare button. */
+.portal-filters-toggle { display: none; }
+@media (max-width: 850px) {
+  .portal-app { grid-template-columns: 1fr; }
+  .portal-nav { position: fixed; z-index: 20; left: 0; right: 0; bottom: 0; padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); flex-direction: row; border-right: 0; border-top: 1px solid var(--line); background: var(--surface); box-shadow: 0 -4px 16px rgba(var(--shadow-rgb), calc(.06 * var(--shadow-k))); }
+  .portal-nav .portal-brand, .portal-nav > .portal-nav-foot { display: none; }
+  .portal-nav nav { width: 100%; padding: 0; flex-direction: row; gap: 4px; }
+  .portal-nav nav a { position: relative; flex: 1 1 0; height: 50px; padding: 0 4px; flex-direction: column; justify-content: center; gap: 3px; font-size: 11px; font-weight: 600; }
+  .portal-nav nav a .nav-count { position: absolute; top: 4px; right: calc(50% - 24px); margin: 0; }
+  /* Bottom padding is the tab bar (63px) plus a small cushion, no more: the
+     inbox and contacts cards are sized to end just above the bar. */
+  .portal-main { padding: 18px 14px calc(72px + env(safe-area-inset-bottom)); }
+  .portal-main > header { margin-bottom: 14px; flex-direction: column; align-items: flex-start; gap: 6px; }
+  .portal-foot-mobile { display: block; margin: 0 0 16px; }
+  .portal-foot-mobile .portal-nav-foot { margin: 0; padding: 0; border: 0; flex-direction: row; align-items: center; gap: 8px; }
+  .portal-foot-mobile .availability-toggle { flex: 1 1 auto; min-width: 0; }
+  .portal-foot-mobile .portal-nav-foot > button:not(.availability-toggle) { height: 44px; padding: 0 12px; flex: 0 0 auto; border: 1px solid var(--line); border-radius: 8px; }
+}
+@media (max-width: 640px) {
+  /* 150px is what sits above and below the card: the page's top padding and
+     one-line header (76px) and the tab bar with its cushion (74px). Measured:
+     the card ends about 10px above the bar. dvh for the same reason as
+     everywhere else. The 190px/1fr split from the earlier rule is undone. */
+  .portal-inbox, .portal-contacts { height: calc(100dvh - 150px); min-height: 420px; grid-template-rows: minmax(0, 1fr); }
+  .portal-inbox:not(.has-thread) > section { display: none; }
+  .portal-inbox.has-thread > aside { display: none; }
+  .portal-contacts:not(.has-detail) > section { display: none; }
+  .portal-contacts.has-detail > aside { display: none; }
+  .portal-inbox .inbox-back, .portal-contacts .inbox-back { display: grid; flex: 0 0 auto; }
+  /* Thread head: back control and name on the first row, the actions (team
+     picker, take over, archive, gallery) on a row of their own underneath.
+     With everything on one row the name was centred between the two ends
+     and the actions spilled onto a second line at the right. */
+  .portal-inbox > section > header, .portal-contacts > section > header { flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+  .portal-inbox > section > header > div:not(.thread-actions), .portal-contacts > section > header > div:not(.thread-actions) { flex: 1 1 0; min-width: 0; }
+  /* The actions box dissolves into the header row (display: contents) so its
+     items can be placed one by one: the icon-only ones (gallery) go to the
+     right end of the first row, next to the name; anything with a label
+     (archive, take over, the team picker) takes a full row of its own under
+     it. Before, all of them sat in one left-aligned second row. */
+  .portal-inbox > section > header > .thread-actions { display: contents; }
+  .portal-inbox > section > header > .thread-actions > .icon-button { order: 0; margin-left: auto; flex: 0 0 auto; }
+  .portal-inbox > section > header > .thread-actions > :not(.icon-button) { order: 1; flex: 1 1 100%; min-height: 40px; margin: 0; justify-content: center; }
+  .portal-inbox > section > header > .thread-actions > .assignee-picker { display: flex; align-items: center; gap: 8px; }
+  .portal-inbox > section > header > .thread-actions > .assignee-picker select { flex: 1; min-width: 0; }
+  /* The resolved / archived bar under a closed thread is one line now. */
+  .portal-composer.archive-bar { padding: 10px 14px; }
+  /* Reports: four range buttons in one row wrapped "Last 7 / days"; a 2 x 2
+     grid keeps each label whole, and the three selects stack full width. */
+  .report-filters { flex-direction: column; align-items: stretch; gap: 10px; }
+  /* The filters fold behind this toggle on a phone, the same as the agency's
+     reports, so the figures come first. */
+  .portal-filters-toggle { width: 100%; min-height: 44px; margin-bottom: 12px; padding: 0 14px; display: flex; align-items: center; gap: 8px; color: var(--ink); border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow); font-size: 14px; font-weight: 600; text-align: left; }
+  .portal-filters-toggle > span { flex: 1; }
+  .portal-filters-toggle .chevron { transition: transform .18s ease; }
+  .portal-filters-toggle .chevron.open { transform: rotate(180deg); }
+  .report-filters.folded { display: none; }
+  .report-ranges { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .report-ranges button { white-space: nowrap; }
+  .report-selects { width: 100%; display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .report-selects select { width: 100%; }
+}
