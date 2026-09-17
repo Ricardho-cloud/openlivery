@@ -2337,6 +2337,11 @@ html[data-theme-transition], html[data-theme-transition] *, html[data-theme-tran
   .wizard-steps { display: none; }
   .template-grid { grid-template-columns: 1fr; }
 
+  /* Entity header actions (publish, open playground, new agent) sat in a row
+     that no longer fit beside the title on a phone; they stack full width. */
+  .header-actions { width: 100%; flex-direction: column; }
+  .header-actions .button { width: 100%; justify-content: center; }
+
   /* Section tabs: the strip gives way to the pager (components/section-tabs). */
   .section-tabs { display: none; }
   .section-pager { margin: 22px 0 18px; padding: 6px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow); }
