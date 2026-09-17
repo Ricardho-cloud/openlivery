@@ -2238,6 +2238,10 @@ html[data-theme-transition], html[data-theme-transition] *, html[data-theme-tran
      got to, which forced the table into horizontal scroll and cut the last
      columns off screen. */
   .entity-cell { min-width: 0; }
+  /* With two columns hidden, the desktop gutter is 108px of a ~325px row, which
+     on its own is enough to push the row back into horizontal scroll. Narrower
+     here so the remaining columns fit without shortening any name. */
+  .data-table th, .data-table td { padding-left: 12px; padding-right: 12px; }
 }
 @media (max-width: 620px) {
   .form-section, .settings-section { padding: 20px; }
