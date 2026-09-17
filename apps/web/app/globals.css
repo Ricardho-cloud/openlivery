@@ -11,6 +11,7 @@
    line. The *-rgb triplets feed rgba() rings and shadows. */
 :root {
   --canvas: #f7f9fa;
+  --canvas-rgb: 247, 249, 250;
   --surface: #ffffff;
   --surface-2: #fafbfc;
   --surface-3: #f1f2f5;
@@ -74,6 +75,7 @@
 
 :root[data-theme="dark"] {
   --canvas: #0d1220;
+  --canvas-rgb: 13, 18, 32;
   --surface: #141a2a;
   --surface-2: #19202f;
   --surface-3: #1f2738;
@@ -2204,3 +2206,48 @@ html[data-theme-transition], html[data-theme-transition] *, html[data-theme-tran
 :root[data-theme="dark"] .rich-text code { background: rgba(255, 255, 255, .08); }
 :root[data-theme="dark"] .portal-composer.window-closed { border-top-color: var(--amber-line); }
 :root[data-theme="dark"] .portal-composer.window-closed strong { color: var(--amber-text); }
+
+/* Phone layout corrections.
+
+   Two distinct problems, both invisible on a desktop viewport. The shell's menu
+   button is fixed, so page content scrolled underneath it and came out from
+   behind it mid-word; the scrim below hides content before it reaches the
+   button. The rest are intrinsic-width floors: a handful of rows kept their
+   desktop minimum on a phone, and because a grid or flex track never shrinks
+   below its content's minimum, each one pushed its own card wider than the
+   card had room for. */
+@media (max-width: 850px) {
+  /* Fades content out under the fixed menu button. At rest this is the page
+     canvas drawn over the page canvas, so nothing shows until content scrolls
+     up into it. Below .mobile-menu (18) and the sidebar overlay (19). */
+  .app-layout::before {
+    content: "";
+    height: 72px;
+    position: fixed;
+    z-index: 17;
+    top: 0;
+    left: 0;
+    right: 0;
+    pointer-events: none;
+    background: linear-gradient(rgba(var(--canvas-rgb), 1) 55%, rgba(var(--canvas-rgb), 0));
+  }
+}
+@media (max-width: 640px) {
+  /* The cell is already built to truncate: its text column is min-width: 0 and
+     the secondary label ellipsizes. The 220px floor was the reason it never
+     got to, which forced the table into horizontal scroll and cut the last
+     columns off screen. */
+  .entity-cell { min-width: 0; }
+}
+@media (max-width: 620px) {
+  .form-section, .settings-section { padding: 20px; }
+  /* An input beside its buttons has a ~300px intrinsic minimum, wider than the
+     content box of the card holding it. Let the buttons take their own row. */
+  .domain-input, .domain-actions, .key-configured-actions { flex-wrap: wrap; }
+  .domain-input > input { min-width: 0; flex: 1 1 100%; }
+  /* Long TXT values stay scrollable instead of widening the card. */
+  .dns-instructions { overflow-x: auto; }
+  /* Plans read as one column; two columns left a cramped pair and an orphan.
+     Scoped to billing so the template picker keeps its own grid. */
+  .billing-grid { grid-template-columns: 1fr; }
+}
