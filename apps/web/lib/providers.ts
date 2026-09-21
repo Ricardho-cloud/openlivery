@@ -1,12 +1,11 @@
-// The AI provider (must match backend app/services/model_catalog.py).
+// The AI provider (must match backend app/services/providers.py).
 //
-// OpenRouter fronts every vendor behind one key, so an agency configures a
-// single key and picks any model by its OpenRouter slug ("openai/gpt-5.6-luna").
-// Models are grouped by what an agency actually chooses on: cost and speed
-// versus capability. The first entry is the recommended default, and the
-// wizard preselects it so an agent can never be created without a model.
-// Group and badge wording is end-user copy and therefore lives in the i18n
-// dictionaries, not here. Any other OpenRouter slug still works when typed.
+// This fork talks to xAI Grok directly (https://api.x.ai/v1) with a single
+// agency key. The registry id stays "openrouter" so existing routes and
+// stored credentials keep working; the label, key URL and models are Grok.
+// Models are grouped by cost/speed versus capability. The first recommended
+// entry is preselected so an agent can never be created without a model.
+// Any other xAI model id still works when typed.
 
 export type ModelGroup = "fast" | "balanced" | "capable";
 
@@ -21,34 +20,19 @@ export type ModelOption = {
 export const PROVIDERS = [
   {
     id: "openrouter",
-    label: "OpenRouter",
-    keyPlaceholder: "sk-or-v1-...",
-    keyUrl: "https://openrouter.ai/settings/keys",
+    label: "xAI Grok",
+    keyPlaceholder: "xai-...",
+    keyUrl: "https://console.x.ai/",
     models: [
-      { id: "openai/gpt-5.6-luna", label: "GPT-5.6 Luna", group: "fast", recommended: true },
-      { id: "openai/gpt-4.1-nano", label: "GPT-4.1 nano", group: "fast" },
-      { id: "openai/gpt-5.4-nano", label: "GPT-5.4 nano", group: "fast" },
-      { id: "google/gemini-3.1-flash-lite", label: "Gemini 3.1 Flash-Lite", group: "fast" },
-      { id: "google/gemini-3.5-flash-lite", label: "Gemini 3.5 Flash-Lite", group: "fast" },
-      { id: "anthropic/claude-haiku-4.5", label: "Claude Haiku 4.5", group: "fast" },
-      { id: "deepseek/deepseek-v4-flash", label: "DeepSeek V4 Flash", group: "fast" },
-      { id: "openai/gpt-5.6-terra", label: "GPT-5.6 Terra", group: "balanced" },
-      { id: "openai/gpt-4.1-mini", label: "GPT-4.1 mini", group: "balanced" },
-      { id: "openai/gpt-5.4-mini", label: "GPT-5.4 mini", group: "balanced" },
-      { id: "google/gemini-3.8-flash", label: "Gemini 3.8 Flash", group: "balanced" },
-      { id: "google/gemini-3.7-flash", label: "Gemini 3.7 Flash", group: "balanced" },
-      { id: "google/gemini-3.6-flash", label: "Gemini 3.6 Flash", group: "balanced" },
-      { id: "google/gemini-3.5-flash", label: "Gemini 3.5 Flash", group: "balanced" },
-      { id: "anthropic/claude-sonnet-5", label: "Claude Sonnet 5", group: "balanced" },
-      { id: "meta-llama/llama-4-maverick", label: "Llama 4 Maverick", group: "balanced" },
-      { id: "openai/gpt-5.6-sol", label: "GPT-5.6 Sol", group: "capable" },
-      { id: "openai/gpt-4.1", label: "GPT-4.1", group: "capable" },
-      { id: "openai/gpt-5.4", label: "GPT-5.4", group: "capable" },
-      { id: "openai/gpt-5.5", label: "GPT-5.5", group: "capable" },
-      { id: "anthropic/claude-opus-5", label: "Claude Opus 5", group: "capable" },
-      { id: "anthropic/claude-fable-5", label: "Claude Fable 5", group: "capable" },
-      { id: "deepseek/deepseek-v4-pro", label: "DeepSeek V4 Pro", group: "capable" },
-      { id: "x-ai/grok-4.5", label: "Grok 4.5", group: "capable" },
+      { id: "grok-4.6", label: "Grok 4.6", group: "capable", recommended: true },
+      { id: "grok-4.5", label: "Grok 4.5", group: "capable" },
+      { id: "grok-4.3", label: "Grok 4.3", group: "capable" },
+      { id: "grok-4", label: "Grok 4", group: "capable" },
+      { id: "grok-4-fast-reasoning", label: "Grok 4 Fast Reasoning", group: "balanced" },
+      { id: "grok-4-fast-non-reasoning", label: "Grok 4 Fast", group: "fast" },
+      { id: "grok-code-fast-1", label: "Grok Code Fast 1", group: "fast" },
+      { id: "grok-3", label: "Grok 3", group: "balanced" },
+      { id: "grok-3-mini", label: "Grok 3 Mini", group: "fast" },
     ] as const satisfies readonly ModelOption[],
   },
 ] as const;
@@ -59,7 +43,7 @@ export const DEFAULT_PROVIDER: ProviderId = "openrouter";
 
 // Transcription models for the audio-recognition capability (OpenRouter's
 // audio endpoint).
-export const AUDIO_MODELS = ["openai/gpt-4o-mini-transcribe", "openai/gpt-4o-transcribe", "openai/gpt-transcribe"] as const;
+export const AUDIO_MODELS = ["grok-4.6", "grok-3"] as const;
 export const DEFAULT_AUDIO_MODEL = AUDIO_MODELS[0];
 
 // Embedding models for the knowledge base (mirrors the API catalog, used while
@@ -79,13 +63,9 @@ export const DEFAULT_EMBEDDING_MODEL = EMBEDDING_MODELS[0];
 // Vision models for the image-recognition capability: any chat model that
 // accepts images. DeepSeek is text-only, so it is left out.
 export const IMAGE_MODELS = [
-  "openai/gpt-5.6-luna", "openai/gpt-5.6-terra", "openai/gpt-5.6-sol", "openai/gpt-5.5", "openai/gpt-5.4", "openai/gpt-5.4-mini", "openai/gpt-5.4-nano",
-  "openai/gpt-4.1", "openai/gpt-4.1-mini", "openai/gpt-4.1-nano",
-  "google/gemini-3.8-flash", "google/gemini-3.7-flash", "google/gemini-3.6-flash", "google/gemini-3.5-flash", "google/gemini-3.5-flash-lite", "google/gemini-3.1-flash-lite",
-  "anthropic/claude-sonnet-5", "anthropic/claude-opus-5", "anthropic/claude-fable-5", "anthropic/claude-haiku-4.5",
-  "x-ai/grok-4.5", "meta-llama/llama-4-maverick",
+  "grok-4.6", "grok-4.5", "grok-4.3", "grok-4", "grok-3",
 ] as const;
-export const DEFAULT_IMAGE_MODEL = "openai/gpt-4.1";
+export const DEFAULT_IMAGE_MODEL = "grok-4.6";
 
 export function providerLabel(id: string): string {
   return PROVIDERS.find((p) => p.id === id)?.label ?? id;
@@ -156,6 +136,6 @@ export function modelContextWindow(id: string): number {
   if (name.startsWith("gpt-5.6") || name.startsWith("gpt-5.5")) return 1_000_000;
   if (name.startsWith("gpt-5")) return 400_000;
   if (name.startsWith("gemini") || name.startsWith("deepseek") || name.startsWith("llama")) return 1_000_000;
-  if (name.startsWith("grok")) return 500_000;
+  if (name.startsWith("grok")) return 1_000_000;
   return 128_000;
 }
