@@ -1,8 +1,8 @@
 """Chat completions over raw HTTP against an OpenAI-compatible endpoint.
 
 Every model is reached through the same ``/chat/completions`` dialect, which
-is what OpenRouter speaks for all vendors. The usage block it returns carries
-the cost of the call, so a reply knows what it cost without a price table.
+is what xAI (and other OpenAI-compatible hosts) speak. The usage block is
+recorded when the provider reports it; otherwise Reports prices from the catalog.
 """
 
 from dataclasses import dataclass, field
@@ -11,8 +11,8 @@ import httpx
 from fastapi import HTTPException
 
 
-# Attribution headers OpenRouter reads to label the app in its logs.
-APP_HEADERS = {"HTTP-Referer": "https://github.com/sarrazola/openlivery", "X-Title": "OpenLivery"}
+# Optional attribution headers (harmless on xAI; used by some compatible hosts).
+APP_HEADERS = {"HTTP-Referer": "https://github.com/Ricardho-cloud/openlivery", "X-Title": "OpenLivery"}
 
 
 @dataclass
@@ -23,7 +23,6 @@ class Usage:
     output_tokens: int = 0
     cached_tokens: int = 0
     reasoning_tokens: int = 0
-    # USD as the provider reported it; None when it did not say.
     cost_usd: float | None = None
 
     def __add__(self, other: "Usage") -> "Usage":
@@ -42,30 +41,16 @@ class Completion:
     text: str
     input_tokens: int = 0
     output_tokens: int = 0
-    # Set by the tool loop: [{name, arguments, result_preview, is_error}].
     tool_calls: list[dict] | None = None
-    # What the reply cost in USD, summed across tool-loop rounds; None when the
-    # provider reported no cost.
     cost_usd: float | None = None
     cached_tokens: int = 0
     reasoning_tokens: int = 0
-    # The upstream vendor that actually served the request, when the router names it.
     served_by: str = ""
-    # Wall-clock time the whole completion took (tool rounds included); set
-    # by run_completion.
     duration_ms: int | None = None
-    # The router's id for the call, to read its record later when the
-    # response left the cost out (speech-to-text does).
     generation_id: str = ""
-    # Files an HTTP tool returned during the loop (list[tool_files.ToolFile]).
-    # Their bytes never entered the model context; the channel layer delivers
-    # them as attachments after the text reply.
     attachments: list = field(default_factory=list)
 
 
-# Substrings in a provider's 400 error that mean a sampling parameter is not
-# accepted (e.g. reasoning models that refuse temperature). When seen, we retry
-# once without those params.
 _SAMPLING_PARAM_HINTS = ("temperature", "max_tokens", "max_output_tokens", "max_completion_tokens", "unsupported", "not supported")
 
 
@@ -79,11 +64,6 @@ async def chat_completion(
     temperature: float | None = None,
     max_tokens: int | None = None,
 ) -> Completion:
-    """Generate a reply through ``{base_url}/chat/completions``.
-
-    ``provider`` names the registry entry the credentials came from; every
-    supported provider speaks the same dialect, so it does not change the call.
-    """
     try:
         return await _chat_completions(base_url, api_key, model, messages, temperature, max_tokens)
     except HTTPException:
@@ -116,8 +96,6 @@ async def _chat_completions(base_url, api_key, model, messages, temperature, max
     payload = {
         "model": model,
         "messages": [{"role": m["role"], "content": m["content"]} for m in messages],
-        # Ask OpenRouter to price the call in the response, so the usage record
-        # carries the real charge instead of waiting on a reconcile.
         "usage": {"include": True},
     }
     data = await _post_json(chat_url(base_url), auth_headers(api_key), payload, sampling_params(temperature, max_tokens))
@@ -139,12 +117,6 @@ def completion_from(text: str, usage: Usage, data: dict, tool_calls: list[dict] 
 
 
 def read_usage(data: dict) -> Usage:
-    """The usage block of a chat completion, cost included.
-
-    OpenRouter reports ``cost`` (what it charges) and, for requests served
-    through a key the account brought itself, ``upstream_inference_cost`` (what
-    the vendor charged). The real cost of the call is the two together.
-    """
     usage = data.get("usage") or {}
     prompt_details = usage.get("prompt_tokens_details") or {}
     completion_details = usage.get("completion_tokens_details") or {}
@@ -153,14 +125,8 @@ def read_usage(data: dict) -> Usage:
     upstream = cost_details.get("upstream_inference_cost")
     cost_usd = None if cost is None and upstream is None else float(cost or 0) + float(upstream or 0)
     if not cost and upstream is None:
-        # Nothing charged by the router and no vendor charge reported: served
-        # through the account's own vendor key (speech-to-text reports it this
-        # way, without even the BYOK flag). The cost is unknown, not zero, so
-        # Reports prices it from the catalog instead.
         cost_usd = None
     return Usage(
-        # Chat completions report prompt/completion tokens; the audio endpoint
-        # reports input/output tokens.
         input_tokens=int(usage.get("prompt_tokens") or usage.get("input_tokens") or 0),
         output_tokens=int(usage.get("completion_tokens") or usage.get("output_tokens") or 0),
         cached_tokens=int(prompt_details.get("cached_tokens") or 0),
@@ -180,15 +146,12 @@ async def _post_json(url: str, headers: dict, base_payload: dict, sampling: dict
 
 
 def chat_message(data: dict) -> dict:
-    """The assistant message of a chat completion (first choice)."""
     return data["choices"][0].get("message") or {}
 
 
 def extract_chat_text(data: dict) -> str:
-    """Pull the assistant text out of a chat completion result."""
     content = chat_message(data).get("content")
     if isinstance(content, list):
-        # Some vendors answer with content parts instead of a plain string.
         content = "".join(part.get("text", "") for part in content if isinstance(part, dict) and part.get("type") == "text")
     text = (content or "").strip()
     if not text:
@@ -198,8 +161,6 @@ def extract_chat_text(data: dict) -> str:
 
 def _is_sampling_param_error(response: httpx.Response) -> bool:
     message = _safe_provider_error(response).lower()
-    # "requires more credits, or fewer max_tokens" is a balance problem, not a
-    # parameter the model rejects; retrying without a cap only inflates it.
     if "credits" in message:
         return False
     return any(hint in message for hint in _SAMPLING_PARAM_HINTS)
@@ -217,21 +178,19 @@ def _safe_provider_error(response: httpx.Response) -> str:
 
 
 async def test_provider(provider: str, base_url: str, api_key: str) -> dict:
-    """Verify a key by asking the provider about it.
-
-    ``GET {base_url}/key`` needs a valid key and describes it (OpenRouter's
-    model list is public, so listing models would accept any string).
-    """
-    url = f"{base_url.rstrip('/')}/key"
+    headers = {"Authorization": f"Bearer {api_key}", **APP_HEADERS}
     try:
         async with httpx.AsyncClient(timeout=25) as client:
-            response = await client.get(url, headers={"Authorization": f"Bearer {api_key}", **APP_HEADERS})
+            response = await client.get(f"{base_url.rstrip('/')}/key", headers=headers)
+            if response.status_code == 404:
+                response = await client.get(f"{base_url.rstrip('/')}/models", headers=headers)
         if response.status_code < 400:
             try:
-                info = response.json().get("data") or {}
+                payload = response.json()
+                info = payload.get("data") or {}
             except (ValueError, AttributeError):
                 info = {}
-            remaining = info.get("limit_remaining")
+            remaining = info.get("limit_remaining") if isinstance(info, dict) else None
             message = "Key verified."
             if isinstance(remaining, (int, float)):
                 message = f"Key verified. Remaining credit: ${remaining:,.2f}."

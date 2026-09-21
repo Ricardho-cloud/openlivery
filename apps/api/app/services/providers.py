@@ -1,10 +1,13 @@
-"""The AI provider: OpenRouter, bring your own key, one per agency.
+"""The AI provider: xAI Grok, bring your own key, one per agency.
 
-OpenRouter fronts every vendor (OpenAI, Anthropic, Google, ...) behind one
-OpenAI-compatible API, so an agency configures a single key and picks any
-model by its OpenRouter slug (``openai/gpt-5.6-luna``, ``anthropic/claude-sonnet-5``).
-The registry keeps its dict shape so a deployment can still swap the base URL
-or resolve credentials differently without touching the call sites.
+Grok is reached through xAI's OpenAI-compatible API
+(``https://api.x.ai/v1``). An agency stores one xAI key and each agent
+picks a Grok model id (``grok-4.6``, ``grok-4.5``, ``grok-code-fast-1``, …).
+
+The registry id stays ``openrouter`` so existing agencies, routes and
+tests keep working; only the upstream host, label and models change.
+The registry keeps its dict shape so a deployment can still swap the
+base URL without touching the call sites.
 """
 
 from sqlalchemy import select
@@ -15,7 +18,8 @@ from ..security import decrypt_secret
 
 
 PROVIDERS: dict[str, dict[str, str]] = {
-    "openrouter": {"label": "OpenRouter", "base_url": "https://openrouter.ai/api/v1"},
+    "openrouter": {"label": "xAI Grok", "base_url": "https://api.x.ai/v1"},
+    "xai": {"label": "xAI Grok", "base_url": "https://api.x.ai/v1"},
 }
 SUPPORTED = tuple(PROVIDERS)
 DEFAULT_PROVIDER = "openrouter"
@@ -29,10 +33,11 @@ def resolve_provider_credentials(db: Session, agency_id, provider: str) -> tuple
     """(base_url, api_key) for an agency's provider key, or None if unknown or unset."""
     if provider not in PROVIDERS:
         return None
+    aliases = ("openrouter", "xai") if provider in ("openrouter", "xai") else (provider,)
     credential = db.scalar(
         select(ProviderCredential).where(
             ProviderCredential.agency_id == agency_id,
-            ProviderCredential.provider == provider,
+            ProviderCredential.provider.in_(aliases),
         )
     )
     if not credential:
